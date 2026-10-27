@@ -218,3 +218,26 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+
+# Dataset and cached data
+data/
+.cache/
+
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+
+# Model checkpoints
+checkpoints/
+*.pth
+*.pt
+
+# Generated EDA outputs
+outputs/*
+!outputs/eda/
+outputs/eda/*
+!outputs/eda/split_indices.json
+
