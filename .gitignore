@@ -222,7 +222,8 @@ __marimo__/
 
 
 # Dataset and cached data
-data/
+/data/
+datasets/
 .cache/
 
 # Python environment
@@ -234,10 +235,14 @@ __pycache__/
 checkpoints/
 *.pth
 *.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.h5
+*.hdf5
 
 # Generated EDA outputs
 outputs/*
 !outputs/eda/
 outputs/eda/*
 !outputs/eda/split_indices.json
-
