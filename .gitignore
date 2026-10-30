@@ -245,4 +245,5 @@ checkpoints/
 outputs/*
 !outputs/eda/
 outputs/eda/*
+!outputs/eda/*.png
 !outputs/eda/split_indices.json
