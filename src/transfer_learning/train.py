@@ -23,6 +23,7 @@ def run_experiment(
     epochs=10,
     batch_size=32,
     learning_rate=None,
+    weight_decay=0.0,
     num_workers=0,
     output_dir=None,
 ):
@@ -34,6 +35,7 @@ def run_experiment(
         epochs: Number of training epochs.
         batch_size: DataLoader batch size.
         learning_rate: Optimizer learning rate.
+        weight_decay: L2 regularization coefficient.
         num_workers: DataLoader workers.
         output_dir: Directory for saving experiment outputs.
     """
@@ -57,6 +59,7 @@ def run_experiment(
     print(f"Epochs: {epochs}")
     print(f"Batch Size: {batch_size}")
     print(f"Learning Rate: {learning_rate}")
+    print(f"Weight Decay: {weight_decay}")
 
     if device.type == "cpu":
         print("\nWARNING: CUDA is unavailable. Training will use CPU.")
@@ -94,6 +97,7 @@ def run_experiment(
     optimizer = torch.optim.Adam(
         trainable_parameters,
         lr=learning_rate,
+        weight_decay=weight_decay,
     )
 
     # 6. Prepare output directory
@@ -167,8 +171,8 @@ def run_experiment(
             "val_accuracy": val_accuracy,
         })
 
-        # check whether the model improved
-        is_best= val_loss < best_val_loss
+        # Check whether the model improved
+        is_best = val_loss < best_val_loss
 
         if is_best:
             best_val_loss = val_loss
@@ -181,6 +185,7 @@ def run_experiment(
             "best_val_loss": best_val_loss,
             "mode": mode,
             "learning_rate": learning_rate,
+            "weight_decay": weight_decay,
             "batch_size": batch_size,
         }
 
@@ -263,6 +268,12 @@ def main():
     )
 
     parser.add_argument(
+        "--weight-decay",
+        type=float,
+        default=0.0,
+    )
+
+    parser.add_argument(
         "--num-workers",
         type=int,
         default=0,
@@ -282,6 +293,7 @@ def main():
         epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
         num_workers=args.num_workers,
         output_dir=args.output_dir,
     )
