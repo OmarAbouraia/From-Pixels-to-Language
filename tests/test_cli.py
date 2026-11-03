@@ -54,5 +54,30 @@ class CLITests(unittest.TestCase):
             self.assertTrue(out.exists())
 
 
+class EvaluateCommandTests(unittest.TestCase):
+    def test_evaluate_end_to_end(self):
+        from torch.utils.data import DataLoader
+
+        torch.manual_seed(0)
+        model = build_classifier("resnet18", pretrained=False)
+        samples = [{"image": torch.randn(3, 64, 64), "label": torch.tensor(i)}
+                   for i in range(4)]
+        with tempfile.TemporaryDirectory() as tmp:
+            ckpt = Path(tmp) / "best_model.pth"
+            torch.save({"epoch": 7, "model_state_dict": model.state_dict(),
+                        "mode": "fine_tuning", "weight_decay": 0.01}, ckpt)
+            out = Path(tmp) / "eval"
+            with patch("src.cli.get_val_loader",
+                       return_value=DataLoader(samples, batch_size=2)), \
+                    patch("src.inference.load_class_names",
+                          return_value=[f"s{i}" for i in range(200)]):
+                code = cli.main(["evaluate", "--checkpoint", str(ckpt),
+                                 "--device", "cpu", "--output-dir", str(out)])
+            self.assertEqual(code, 0)
+            saved = (out / "evaluation_metrics.json").read_text()
+            self.assertIn('"weight_decay": 0.01', saved)   # checkpoint info kept
+            self.assertTrue((out / "confusion_matrix.csv").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

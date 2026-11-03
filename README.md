@@ -199,7 +199,45 @@ Prints the top-5 species with probabilities. Add `--json pred.json` to save them
 Species names come from the Hugging Face dataset metadata; pass
 `--class-names names.json` to work offline.
 
-### Grad-CAM
+### Evaluate a checkpoint
+
+```bash
+python -m src.cli evaluate --task classification \
+    --checkpoint path/to/Hyperparameter-Tuning/WD-01/best_model.pth \
+    --output-dir path/to/Hyperparameter-Tuning/WD-01
+```
+
+Computes, on the 1,198-image validation split: validation loss, accuracy, top-5
+accuracy, and macro/weighted precision, recall and F1. It saves
+`evaluation_metrics.json`, `confusion_matrix.csv` (rows = true class) and
+`validation_predictions.csv` (one row per image), the same files as the earlier
+experiments. Nothing is retrained.
+
+### Hyperparameter tuning: Grid Search vs Random Search
+
+```bash
+python -m src.cli tune --task classification \
+    --config configs/tuning_fine_tuning.yaml --method both
+```
+
+- Tunes **learning rate** and **weight decay** for fine-tuned ResNet18. Model, split,
+  transforms, batch size, epochs and seed are fixed, so the comparison is fair.
+- **Grid Search:** 3 learning rates x 2 weight decays = 6 trials.
+- **Random Search:** the same budget (6 trials), sampled log-uniformly from
+  `lr in [1e-5, 1e-3]` and `wd in [1e-6, 1e-2]`, with a fixed sampling seed.
+- Each trial trains with the existing `run_experiment`, then evaluates its best
+  checkpoint. Selection metric: **macro F1**.
+- If Colab disconnects, run the same command again. Finished trials are skipped.
+  `--method grid` and `--method random` can also be run in separate sessions.
+
+Outputs in `output_dir`:
+
+| File | Content |
+|---|---|
+| `grid_results.csv`, `random_results.csv` | one row per trial: lr, wd, metrics, training time |
+| `comparison.csv` / `comparison.json` | per method: best macro F1 and its config, number of trials, total time, trials and time needed to reach the best |
+| `tuning_comparison.png` | best-so-far score vs trials and vs time, plus the tried configurations |
+
 
 ```bash
 python -m src.cli gradcam --task classification \
@@ -238,4 +276,5 @@ Prediction, checkpoint loading and Grad-CAM then work without further changes.
 python -m pytest tests -v
 ```
 
-The tests use random weights and fake data, so they run offline without checkpoints.
+The tests use random weights, fake data and a fake training function, so they run
+offline on a CPU without checkpoints.

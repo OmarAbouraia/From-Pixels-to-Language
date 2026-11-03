@@ -2,7 +2,9 @@
 
     python -m src.cli train   --task classification --config configs/classification_fine_tuning.yaml
     python -m src.cli predict --task classification --checkpoint best_model.pth --image bird.jpg
+    python -m src.cli evaluate --task classification --checkpoint best_model.pth --output-dir outputs/eval
     python -m src.cli gradcam --task classification --checkpoint best_model.pth --output-dir outputs/gradcam
+    python -m src.cli tune    --task classification --config configs/tuning_fine_tuning.yaml --method both
 
 Design choice: this file only parses arguments and dispatches. Training is
 delegated to the existing src.transfer_learning.train.run_experiment (not
@@ -13,11 +15,12 @@ add their own branches in Milestone 2.
 
 import argparse
 import json
-import random
 import sys
 from pathlib import Path
 
 import torch
+
+from src.utils import set_seed
 
 TASKS = ["classification"]
 
@@ -36,19 +39,28 @@ def load_config(path: str | Path) -> dict:
     return config
 
 
-def set_seed(seed: int) -> None:
-    import numpy as np
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
-
 def resolve_device(name: str) -> torch.device:
     if name == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return torch.device(name)
+
+
+def get_val_loader(model_name: str, batch_size: int = 32, num_workers: int = 0):
+    """Validation loader of the original EDA split (1,198 images, not shuffled),
+    with the preprocessing that matches the model."""
+    from src.models import get_model_spec
+
+    if get_model_spec(model_name).normalization == "imagenet":
+        from src.transfer_learning.data import create_transfer_learning_loaders
+
+        _, val_loader = create_transfer_learning_loaders(
+            batch_size=batch_size, num_workers=num_workers)
+    else:
+        from src.data.data_loader import create_data_loaders
+
+        _, val_loader = create_data_loaders(
+            batch_size=batch_size, num_workers=num_workers)
+    return val_loader
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +121,33 @@ def cmd_predict(args) -> int:
     return 0
 
 
+def cmd_evaluate(args) -> int:
+    from src.evaluation import evaluate_model, print_metrics
+    from src.inference import load_class_names
+    from src.models import load_classifier
+
+    device = resolve_device(args.device)
+    model, meta = load_classifier(args.checkpoint, name=args.model, device=device)
+    class_names = load_class_names(args.class_names)
+    val_loader = get_val_loader(args.model, args.batch_size, args.num_workers)
+
+    metrics = evaluate_model(model, val_loader, class_names,
+                             output_dir=args.output_dir, device=device,
+                             extra_info=meta)
+    print_metrics(metrics)
+    return 0
+
+
+def cmd_tune(args) -> int:
+    from src.tuning import run_tuning
+
+    config = load_config(args.config)
+    if args.output_dir:
+        config["output_dir"] = args.output_dir
+    run_tuning(config, methods=args.method)
+    return 0
+
+
 def cmd_gradcam(args) -> int:
     from src.inference import load_class_names
     from src.models import load_classifier
@@ -118,19 +157,7 @@ def cmd_gradcam(args) -> int:
     model, _ = load_classifier(args.checkpoint, name=args.model, device=device)
     class_names = load_class_names(args.class_names)
 
-    if args.model == "resnet18":
-        from src.transfer_learning.data import create_transfer_learning_loaders
-
-        _, val_loader = create_transfer_learning_loaders(
-            batch_size=args.batch_size, num_workers=args.num_workers
-        )
-    else:
-        from src.data.data_loader import create_data_loaders
-
-        _, val_loader = create_data_loaders(
-            batch_size=args.batch_size, num_workers=args.num_workers
-        )
-
+    val_loader = get_val_loader(args.model, args.batch_size, args.num_workers)
     generate_gradcam_examples(
         model, args.model, val_loader, class_names, args.output_dir,
         num_correct=args.num_correct, num_incorrect=args.num_incorrect,
@@ -173,6 +200,23 @@ def build_parser() -> argparse.ArgumentParser:
     predict.add_argument("--top-k", type=int, default=5)
     predict.add_argument("--json", default=None, help="Also save results as JSON")
     predict.set_defaults(func=cmd_predict)
+
+    evaluate = sub.add_parser("evaluate",
+                              help="Metrics, confusion matrix and predictions on the validation split")
+    add_model_args(evaluate)
+    evaluate.add_argument("--output-dir", default=None,
+                          help="Where to save evaluation_metrics.json etc. "
+                               "(default: print only)")
+    evaluate.add_argument("--batch-size", type=int, default=32)
+    evaluate.add_argument("--num-workers", type=int, default=0)
+    evaluate.set_defaults(func=cmd_evaluate)
+
+    tune = sub.add_parser("tune", help="Grid Search and/or Random Search")
+    tune.add_argument("--task", choices=TASKS, default="classification")
+    tune.add_argument("--config", required=True)
+    tune.add_argument("--method", choices=["grid", "random", "both"], default="both")
+    tune.add_argument("--output-dir", default=None)
+    tune.set_defaults(func=cmd_tune)
 
     gradcam = sub.add_parser("gradcam",
                              help="Grad-CAM for correct/incorrect validation images")
