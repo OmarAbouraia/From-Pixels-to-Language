@@ -247,3 +247,8 @@ outputs/*
 outputs/eda/*
 !outputs/eda/*.png
 !outputs/eda/split_indices.json
+
+# MLflow tracking store (binary database, kept in Drive instead)
+outputs/mlflow/
+mlflow.db
+mlruns/
