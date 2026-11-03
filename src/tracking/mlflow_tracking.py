@@ -82,9 +82,21 @@ def collect_run_info(run_dir: Path) -> dict:
     }
 
 
-def find_run_folders(root: Path) -> list[Path]:
-    """Every folder under root that contains a training_history.csv."""
-    return sorted(p.parent for p in Path(root).rglob("training_history.csv"))
+def find_run_folders(root: Path, exclude: Path | None = None) -> list[Path]:
+    """Every folder under root that contains a training_history.csv.
+
+    `exclude` (the tracking folder) is skipped: MLflow stores copies of each
+    run's training_history.csv in its artifacts, and those must not be
+    mistaken for new runs when the tracking folder sits inside `root`.
+    """
+    excluded = Path(exclude).resolve() if exclude is not None else None
+    folders = []
+    for history in Path(root).rglob("training_history.csv"):
+        folder = history.parent.resolve()
+        if excluded is not None and (folder == excluded or excluded in folder.parents):
+            continue
+        folders.append(history.parent)
+    return sorted(folders)
 
 
 def log_runs(root, tracking_dir, experiment="classification", run_name_prefix=""):
@@ -107,7 +119,7 @@ def log_runs(root, tracking_dir, experiment="classification", run_name_prefix=""
         mlflow.set_experiment(experiment)
 
         logged = []
-        for run_dir in find_run_folders(root):
+        for run_dir in find_run_folders(root, exclude=tracking_dir):
             source = str(run_dir.resolve())
             existing = mlflow.search_runs(
                 filter_string=f"tags.source_dir = '{source}'", max_results=1)

@@ -95,5 +95,20 @@ class LogRunsTests(unittest.TestCase):
             self.assertTrue((tracking / "tracked_runs_curves.png").exists())
 
 
+class TrackingFolderInsideRunsTests(unittest.TestCase):
+    def test_tracking_folder_is_not_scanned(self):
+        """Regression: tracking dir inside the scanned folder must not create
+        extra runs from MLflow's own artifact copies."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "results"
+            tracking = root / "mlflow"
+            make_run(root / "Fine-Tuning")
+            self.assertEqual(len(log_runs(root, tracking)), 1)
+            # artifacts now contain a training_history.csv copy
+            self.assertTrue(list(tracking.rglob("training_history.csv")))
+            self.assertEqual(log_runs(root, tracking), [])
+            self.assertEqual(len(find_run_folders(root, exclude=tracking)), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
