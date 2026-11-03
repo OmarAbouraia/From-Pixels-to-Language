@@ -1,0 +1,15 @@
+{
+  "epochs": 90,
+  "batch_size": 32,
+  "lr": 0.003,
+  "weight_decay": 0.0001,
+  "dropout": 0.3,
+  "label_smoothing": 0.1,
+  "warmup_epochs": 5,
+  "num_workers": 0,
+  "seed": 42,
+  "output_dir": "/kaggle/working/BirdCNN_V3_Training",
+  "resume": false,
+  "smoke_test": false,
+  "max_run_epochs": 1
+}
