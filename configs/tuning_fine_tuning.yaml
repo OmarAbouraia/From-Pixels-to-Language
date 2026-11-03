@@ -1,0 +1,27 @@
+# Grid Search vs Random Search, pretrained ResNet18 fine-tuning.
+# Run (Colab, GPU):
+#   python -m src.cli tune --config configs/tuning_fine_tuning.yaml --method both
+# Safe to re-run after a disconnect: finished trials are skipped.
+#
+# Budget: 6 grid + 6 random trials x 5 epochs. Only learning rate and weight
+# decay are tuned; everything else is fixed so the comparison is fair.
+task: classification
+model: resnet18
+mode: fine_tuning
+epochs: 5                 # per trial (baseline used 10; reduced to fit Colab time)
+batch_size: 32
+seed: 42                  # same seed for every trial
+num_workers: 2
+selection_metric: macro_f1
+keep_best_checkpoints: true   # ~129 MB per trial; set false to save Drive space
+output_dir: outputs/tuning/fine_tuning   # on Colab, point this to Drive
+
+grid:                     # 3 x 2 = 6 trials
+  learning_rate: [0.00003, 0.0001, 0.0003]
+  weight_decay: [0.0, 0.001]
+
+random:
+  n_trials: 6             # same budget as the grid
+  seed: 0                 # sampling seed, so the trials are reproducible
+  learning_rate: {low: 0.00001, high: 0.001, log: true}
+  weight_decay: {low: 0.000001, high: 0.01, log: true}
