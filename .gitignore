@@ -220,30 +220,10 @@ __marimo__/
 .streamlit/secrets.toml
 
 
-
-# Dataset and cached data
-/data/
-datasets/
-.cache/
-
-# Python environment
-.venv/
-__pycache__/
-*.pyc
-
-# Model checkpoints
-checkpoints/
-*.pth
-*.pt
-*.ckpt
-*.safetensors
-*.onnx
-*.h5
-*.hdf5
-
-# Generated EDA outputs
-outputs/*
-!outputs/eda/
-outputs/eda/*
-!outputs/eda/*.png
-!outputs/eda/split_indices.json
+# Allow CNN V3 experiment results
+!outputs/cnn_v3/
+outputs/cnn_v3/*
+!outputs/cnn_v3/*.png
+!outputs/cnn_v3/*.csv
+!outputs/cnn_v3/*.json
+!outputs/cnn_v3/*.md
