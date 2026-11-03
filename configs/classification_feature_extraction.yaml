@@ -1,0 +1,16 @@
+# Pretrained ResNet18, frozen backbone, only the 200-class head trained
+# (54.76% val acc, 53.92% macro F1)
+# Run: python -m src.cli train --task classification --config configs/classification_feature_extraction.yaml
+task: classification
+model: resnet18
+mode: feature_extraction
+pretrained: true
+epochs: 10
+batch_size: 32
+learning_rate: 0.001
+weight_decay: 0.0
+optimizer: adam
+seed: 42
+num_workers: 2
+split_file: outputs/eda/split_indices.json
+output_dir: outputs/transfer_learning/feature_extraction

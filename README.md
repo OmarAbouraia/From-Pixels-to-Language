@@ -155,3 +155,87 @@ print(batch["captions"][0][0])    # first caption for the first image
 * The loader only splits captions on line breaks. Caption normalization, vocabulary construction, tokenization, and padding belong to the captioning pipeline.
 
 
+
+## 12. Classification CLI, Inference and Grad-CAM (Workstream D)
+
+All classification commands go through one entry point, `src/cli.py`.
+Run them from the project root.
+
+### Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+Trained checkpoints are **not** in Git. Download `best_model.pth` from the shared
+Google Drive folder (`Transfer-Learning/Fine-Tuning/` or `Feature-Extraction/`).
+
+### Train
+
+```bash
+# Pretrained ResNet18, full fine-tuning (current best model)
+python -m src.cli train --task classification --config configs/classification_fine_tuning.yaml
+
+# Pretrained ResNet18, frozen backbone
+python -m src.cli train --task classification --config configs/classification_feature_extraction.yaml
+
+# Any config value can be overridden from the command line
+python -m src.cli train --config configs/classification_fine_tuning.yaml --epochs 5 --weight-decay 0.001
+```
+
+`train` reuses the existing `src.transfer_learning.train.run_experiment`, so results
+match the original pipeline. `configs/classification_scratch.yaml` is a template for
+the scratch CNN and becomes runnable once that model is registered.
+
+### Predict one image
+
+```bash
+python -m src.cli predict --task classification \
+    --checkpoint path/to/Fine-Tuning/best_model.pth \
+    --image path/to/bird.jpg --top-k 5
+```
+
+Prints the top-5 species with probabilities. Add `--json pred.json` to save them.
+Species names come from the Hugging Face dataset metadata; pass
+`--class-names names.json` to work offline.
+
+### Grad-CAM
+
+```bash
+python -m src.cli gradcam --task classification \
+    --checkpoint path/to/Fine-Tuning/best_model.pth \
+    --output-dir outputs/gradcam/fine_tuning --num-correct 8 --num-incorrect 8
+```
+
+Runs the model on the original 1,198-image validation split and saves, under
+`outputs/gradcam/...`:
+
+- `correct/` – Grad-CAM for correctly classified images,
+- `incorrect/` – Grad-CAM for the predicted class, plus a second figure for the
+  true class (`*_cam-for-true.png`) to show why the model went wrong,
+- `gradcam_summary.csv` – true and predicted species for every figure.
+
+The target layer is the last convolutional block (`layer4[-1]` for ResNet18).
+
+### Adding a new model (e.g. the scratch CNN)
+
+Models are accessed only through `src/models/registry.py`. A model must take
+`[B, 3, 224, 224]` and return raw logits `[B, 200]`. To plug one in:
+
+```python
+register_model("scratch_cnn", ModelSpec(
+    builder=create_scratch_cnn,                     # (num_classes, mode, pretrained) -> nn.Module
+    gradcam_layer=lambda m: m.<last_conv_block>,
+    normalization="scratch",                         # uses src/data/transforms.py
+))
+```
+
+Prediction, checkpoint loading and Grad-CAM then work without further changes.
+
+### Tests
+
+```bash
+python -m pytest tests -v
+```
+
+The tests use random weights and fake data, so they run offline without checkpoints.

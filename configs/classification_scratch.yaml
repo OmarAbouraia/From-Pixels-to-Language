@@ -1,0 +1,15 @@
+# TEMPLATE for the CNN trained from scratch (baseline).
+# Not runnable yet: the scratch model must first be registered in
+# src/models/registry.py under the name below. Values are placeholders to agree on.
+task: classification
+model: scratch_cnn
+pretrained: false
+epochs: 30
+batch_size: 32
+learning_rate: 0.001
+weight_decay: 0.0001
+optimizer: adam
+seed: 42
+num_workers: 2
+split_file: outputs/eda/split_indices.json
+output_dir: outputs/scratch_cnn
