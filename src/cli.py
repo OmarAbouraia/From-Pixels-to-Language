@@ -5,6 +5,7 @@
     python -m src.cli evaluate --task classification --checkpoint best_model.pth --output-dir outputs/eval
     python -m src.cli gradcam --task classification --checkpoint best_model.pth --output-dir outputs/gradcam
     python -m src.cli tune    --task classification --config configs/tuning_fine_tuning.yaml --method both
+    python -m src.cli track   --runs-dir <runs folder> --tracking-dir outputs/mlflow --export
 
 Design choice: this file only parses arguments and dispatches. Training is
 delegated to the existing src.transfer_learning.train.run_experiment (not
@@ -93,6 +94,12 @@ def cmd_train(args) -> int:
             num_workers=int(config.get("num_workers", 0)),
             output_dir=config.get("output_dir"),
         )
+        tracking = config.get("tracking") or {}
+        if tracking.get("enabled") and config.get("output_dir"):
+            from src.tracking import log_runs
+
+            log_runs(config["output_dir"], tracking.get("dir", "outputs/mlflow"),
+                     experiment=tracking.get("experiment", "classification"))
         return 0
 
     print(f"ERROR: training for model '{model_name}' is not connected yet. "
@@ -145,6 +152,16 @@ def cmd_tune(args) -> int:
     if args.output_dir:
         config["output_dir"] = args.output_dir
     run_tuning(config, methods=args.method)
+    return 0
+
+
+def cmd_track(args) -> int:
+    from src.tracking import export_summary, log_runs
+
+    for runs_dir in args.runs_dir:
+        log_runs(runs_dir, args.tracking_dir, experiment=args.experiment)
+    if args.export:
+        export_summary(args.tracking_dir, experiment=args.experiment)
     return 0
 
 
@@ -217,6 +234,16 @@ def build_parser() -> argparse.ArgumentParser:
     tune.add_argument("--method", choices=["grid", "random", "both"], default="both")
     tune.add_argument("--output-dir", default=None)
     tune.set_defaults(func=cmd_tune)
+
+    track = sub.add_parser("track", help="Log existing run folders to MLflow")
+    track.add_argument("--runs-dir", action="append", required=True,
+                       help="Folder to scan for runs (repeat for several folders)")
+    track.add_argument("--tracking-dir", default="outputs/mlflow",
+                       help="Where mlflow.db and artifacts/ are stored")
+    track.add_argument("--experiment", default="classification")
+    track.add_argument("--export", action="store_true",
+                       help="Also write runs_summary.csv and tracked_runs_curves.png")
+    track.set_defaults(func=cmd_track)
 
     gradcam = sub.add_parser("gradcam",
                              help="Grad-CAM for correct/incorrect validation images")

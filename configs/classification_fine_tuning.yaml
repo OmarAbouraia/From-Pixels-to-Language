@@ -13,3 +13,7 @@ seed: 42
 num_workers: 2
 split_file: outputs/eda/split_indices.json   # 4,795 train / 1,198 val. Do not regenerate.
 output_dir: outputs/transfer_learning/fine_tuning
+tracking:                 # log this run to MLflow when training finishes
+  enabled: true
+  dir: outputs/mlflow
+  experiment: classification

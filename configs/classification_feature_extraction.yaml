@@ -14,3 +14,7 @@ seed: 42
 num_workers: 2
 split_file: outputs/eda/split_indices.json
 output_dir: outputs/transfer_learning/feature_extraction
+tracking:                 # log this run to MLflow when training finishes
+  enabled: true
+  dir: outputs/mlflow
+  experiment: classification

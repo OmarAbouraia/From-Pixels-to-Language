@@ -22,9 +22,12 @@ class CLITests(unittest.TestCase):
 
     def test_train_calls_existing_pipeline_with_config_and_overrides(self):
         config = ROOT / "configs" / "classification_fine_tuning.yaml"
-        with patch("src.transfer_learning.train.run_experiment") as run:
+        with patch("src.transfer_learning.train.run_experiment") as run, \
+                patch("src.tracking.log_runs") as track:
             code = cli.main(["train", "--config", str(config), "--epochs", "1"])
         self.assertEqual(code, 0)
+        track.assert_called_once()                        # tracking enabled in config
+        self.assertEqual(track.call_args.args[1], "outputs/mlflow")
         kwargs = run.call_args.kwargs
         self.assertEqual(kwargs["mode"], "fine_tuning")
         self.assertEqual(kwargs["epochs"], 1)            # override wins
